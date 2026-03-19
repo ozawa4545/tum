@@ -319,7 +319,7 @@ function triggerShuffle() {
     const scene = game.scene.scenes[0];
     scene.tsums.getChildren().forEach(t => {
         const angle = Math.random() * Math.PI * 2;
-        t.setVelocity(Math.cos(angle) * 2000, Math.sin(angle) * 1000 - 500);
+        t.setVelocity(Math.cos(angle) * 4000, Math.sin(angle) * 1000 - 500);
     });
     setTimeout(() => {
         canShuffle = true;
