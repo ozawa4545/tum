@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pop Tsum - Final Stable Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800&display=swap');
+        body { margin: 0; background: #a1c4fd; font-family: 'M PLUS Rounded 1c', sans-serif; display: flex; flex-direction: column; align-items: center; overflow: hidden; height: 100vh; user-select: none; touch-action: none; }
+        #init-overlay { position: fixed; inset: 0; background: #a1c4fd; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5000; color: white; cursor: pointer; }
+        .tap-msg { font-size: 24px; animation: blink 1s infinite alternate; }
+        @keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
+        #fever-bg { position: fixed; inset: 0; background: linear-gradient(180deg, #ff9a9e, #fecfef); opacity: 0; transition: opacity 0.5s; z-index: -1; }
+        .fever-active #fever-bg { opacity: 1; }
+        #home-screen { position: fixed; inset: 0; background: linear-gradient(180deg, #74ebd5, #9face6); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .char-item-box { width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; cursor: pointer; margin: 8px; background: white; overflow: hidden; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .char-item-box.selected { border-color: #2196F3; transform: scale(1.15); box-shadow: 0 0 20px white; }
+        .char-img { width: 100%; height: 100%; object-fit: cover; }
+        .btn-start { background: #2196F3; color: white; border: none; padding: 18px 70px; font-size: 26px; border-radius: 50px; cursor: pointer; font-family: inherit; box-shadow: 0 6px 0 #1976D2; margin-top: 30px; }
+        #game-header { position: absolute; width: 380px; top: 15px; display: none; justify-content: space-between; z-index: 500; padding: 0 10px; box-sizing: border-box; pointer-events: none;}
+        .stat-panel { background: rgba(255,255,255,0.85); padding: 5px 15px; border-radius: 20px; color: #1976D2; border: 3px solid #fff; font-size: 20px; }
+        #fever-gauge-wrap { position: absolute; bottom: 30px; width: 200px; height: 20px; background: rgba(255,255,255,0.4); border: 3px solid #fff; border-radius: 15px; overflow: hidden; display: none; z-index: 500; left: 50%; transform: translateX(-50%); }
+        #fever-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #ffeb3b, #f44336); transition: width 0.3s; }
+        .bottom-btn { width: 85px; height: 85px; border-radius: 50%; border: 4px solid #fff; position: absolute; cursor: pointer; display: none; align-items: center; justify-content: center; color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); font-size: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: 0.3s; z-index: 999; }
+        #skill-btn-container { left: 20px; bottom: 20px; background: #555; overflow: hidden; }
+        #skill-gauge { position: absolute; bottom: 0; width: 100%; height: 0%; background: #ff9800; transition: height 0.3s; z-index: -1; }
+        #skill-btn-container.ready { background: #e65100; box-shadow: 0 0 20px #ffeb3b; animation: pulse 0.8s infinite alternate; }
+        #shuffle-btn { right: 20px; bottom: 20px; background: #4caf50; }
+        #shuffle-btn.cooldown { background: #888; cursor: not-allowed; opacity: 0.6; transform: scale(0.9); }
+        #result-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; color: white; }
+        #result-rank { font-size: 80px; font-weight: 800; text-shadow: 0 0 20px rgba(255,255,255,0.5); margin: 10px 0; }
+        #result-score { font-size: 40px; margin-bottom: 30px; }
+        .btn-retry { background: #4caf50; color: white; border: none; padding: 15px 50px; font-size: 22px; border-radius: 50px; cursor: pointer; font-family: inherit; box-shadow: 0 6px 0 #2e7d32; }
+        #start-overlay { position: fixed; inset: 0; display: none; justify-content: center; align-items: center; font-size: 80px; color: #fff; z-index: 2000; background: rgba(0,0,0,0.2); font-weight: bold; }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+    </style>
+</head>
+<body>
+
+<div id="init-overlay" onclick="initializeGame()">
+    <h1 style="font-size: 40px;">ツムツム</h1>
+    <div class="tap-msg">タップしてスタート</div>
+</div>
+
+<div id="fever-bg"></div>
+<div id="start-overlay">READY</div>
+
+<div id="home-screen">
+    <h1 style="color:white; font-size: 45px; text-shadow: 3px 3px 0 #1976D2;">ツムを選択</h1>
+    <div id="selector" style="display:flex; flex-wrap: wrap; justify-content: center; max-width: 320px;"></div>
+    <button class="btn-start" onclick="readyGoSequence()">START!</button>
+</div>
+
+<div id="game-header">
+    <div class="stat-panel">SCORE: <span id="score-val">0</span></div>
+    <div class="stat-panel">TIME: <span id="time-val">60</span></div>
+</div>
+
+<div id="fever-gauge-wrap"><div id="fever-bar"></div></div>
+
+<div id="skill-btn-container" class="bottom-btn" onclick="triggerSkill()">
+    <div id="skill-gauge"></div>
+    <div style="z-index: 10;">SKILL</div>
+</div>
+
+<div id="shuffle-btn" class="bottom-btn" onclick="triggerShuffle()">SHUFFLE</div>
+
+<div id="result-screen">
+    <div style="font-size: 24px;">RESULT</div>
+    <div id="result-rank">-</div>
+    <div id="result-score">0</div>
+    <button class="btn-retry" onclick="location.reload()">RETRY</button>
+</div>
+
+<div id="container"></div>
+
+<script>
+const AUDIO_FILES = {
+    selectBGM: 'ホーム.mp3',
+    gameBGM: '通常ゲーム中.mp3',
+    feverBGM: 'フィーバーBGM.mp3',
+    resultBGM: '結果.mp3',
+    countSE: 'スタート時効果音.mp3', 
+    feverInSE: 'フィーバー効果音.mp3', 
+    tapSE: 'ツム.mp3'
+};
+
+let game, score = 0, time = 60, playing = false, myTsumIdx = 0;
+let fever = 0, isFever = false, skill = 0;
+let canShuffle = true;
+let currentBGM = null;
+const SKILL_MAX = 100;
+const FILES = ['tsum0.png', 'tsum1.png', 'tsum2.png', 'tsum3.png', 'tsum4.png'];
+const CONNECT_DISTANCE = 90; 
+
+function initializeGame() {
+    document.getElementById('init-overlay').style.display = 'none';
+    document.getElementById('home-screen').style.display = 'flex';
+    if(!game) runPhaser();
+}
+
+function readyGoSequence() {
+    const scene = game.scene.scenes[0];
+    scene.sound.stopAll();
+    if(currentBGM) currentBGM = null;
+    document.getElementById('home-screen').style.display = 'none';
+    const overlay = document.getElementById('start-overlay');
+    overlay.style.display = 'flex';
+    overlay.innerText = "READY";
+    scene.sound.play('countSE');
+    setTimeout(() => {
+        overlay.innerText = "GO!";
+        playBGM('gameBGM');
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            playing = true;
+        }, 500);
+    }, 1800);
+}
+
+function runPhaser() {
+    const config = {
+        type: Phaser.AUTO,
+        width: 380,
+        height: 550,
+        parent: 'container',
+        transparent: true,
+        physics: { 
+            default: 'arcade', 
+            arcade: { 
+                gravity: { y: 3000 }, 
+                overlapBias: 8, // 重なりの計算を緩めてぶるぶるを抑制
+                fps: 60 
+            } 
+        },
+        scene: { preload: preload, create: create, update: update }
+    };
+    game = new Phaser.Game(config);
+}
+
+function preload() {
+    FILES.forEach((f, i) => this.load.image('tsum' + i, f));
+    Object.keys(AUDIO_FILES).forEach(key => {
+        this.load.audio(key, AUDIO_FILES[key]);
+    });
+}
+
+function create() {
+    const scene = this;
+    playBGM('selectBGM');
+    const selector = document.getElementById('selector');
+    selector.innerHTML = ''; 
+    FILES.forEach((f, i) => {
+        const box = document.createElement('div');
+        box.className = 'char-item-box' + (i === 0 ? ' selected' : '');
+        box.onclick = () => {
+            myTsumIdx = i;
+            document.querySelectorAll('.char-item-box').forEach(el => el.classList.remove('selected'));
+            box.classList.add('selected');
+        };
+        const img = document.createElement('img');
+        img.src = f;
+        img.className = 'char-img';
+        img.onerror = () => { img.src = "https://via.placeholder.com/70/white/2196F3?text=T"+i; };
+        box.appendChild(img);
+        selector.appendChild(box);
+    });
+    this.tsums = this.physics.add.group({ 
+        bounceX: 0.05, // 跳ね返りを抑えて安定化
+        bounceY: 0.05, 
+        collideWorldBounds: true 
+    });
+    this.physics.add.collider(this.tsums, this.tsums);
+    this.line = this.add.graphics();
+    this.selected = [];
+    for(let i=0; i<55; i++) {
+        scene.time.addEvent({ delay: i * 30, callback: () => spawn(scene) });
+    }
+    this.time.addEvent({
+        delay: 1000,
+        callback: () => {
+            if(!playing) return;
+            time--;
+            document.getElementById('time-val').innerText = time;
+            if(time <= 0) { playing = false; showResult(); }
+        },
+        loop: true
+    });
+
+    this.input.on('pointerdown', (p, targets) => {
+        if(targets.length > 0 && playing) {
+            this.selected = [targets[0]];
+            targets[0].setTint(0xaaaaaa); // 色で選択を表現（サイズ変更はしない）
+            scene.sound.play('tapSE', { volume: 0.5 });
+            highlightConnectable(scene, targets[0]);
+        }
+    });
+
+    this.input.on('pointermove', (p, targets) => {
+        if(!this.selected.length || !playing) return;
+        
+        const last = this.selected[this.selected.length-1];
+        
+        if(targets.length > 0) {
+            const curr = targets[0];
+            const dist = Phaser.Math.Distance.Between(last.x, last.y, curr.x, curr.y);
+            if(!this.selected.includes(curr) && curr.texture.key === last.texture.key && dist < CONNECT_DISTANCE) {
+                this.selected.push(curr);
+                curr.setTint(0xaaaaaa);
+                scene.sound.play('tapSE', { volume: 0.4, detune: this.selected.length * 100 });
+            }
+        }
+        highlightConnectable(scene, this.selected[this.selected.length-1]);
+    });
+
+    this.input.on('pointerup', () => {
+        resetHighlights(scene);
+        if(this.selected.length >= 3) handlePop(this.selected);
+        else this.selected.forEach(t => { t.clearTint(); t.setAlpha(1); });
+        this.selected = [];
+    });
+}
+
+function highlightConnectable(scene, activeTsum) {
+    if(!activeTsum) return;
+    scene.tsums.getChildren().forEach(t => {
+        if(scene.selected.includes(t)) return;
+
+        const dist = Phaser.Math.Distance.Between(activeTsum.x, activeTsum.y, t.x, t.y);
+        if(t.texture.key === activeTsum.texture.key && dist < CONNECT_DISTANCE) {
+            t.setAlpha(0.6); // 半透明にして「光っている」感を出す（物理演算に影響しない）
+        } else {
+            t.setAlpha(1);
+        }
+    });
+}
+
+function resetHighlights(scene) {
+    scene.tsums.getChildren().forEach(t => {
+        t.setAlpha(1);
+        t.clearTint();
+    });
+}
+
+function playBGM(key) {
+    if (!game) return;
+    const scene = game.scene.scenes[0];
+    if (currentBGM) { currentBGM.stop(); currentBGM.destroy(); }
+    currentBGM = scene.sound.add(key, { loop: true, volume: 0.4 });
+    currentBGM.play();
+}
+
+function spawn(scene) {
+    const i = Math.floor(Math.random() * FILES.length);
+    const x = Phaser.Math.Between(40, 340);
+    const t = scene.tsums.create(x, -50, 'tsum' + i);
+    const size = 65;
+    t.setDisplaySize(size, size);
+    const hitRadius = (size / 2) * 0.85; // 少し当たり判定を小さくして詰まりを防止
+    const originalWidth = t.texture.getSourceImage().width;
+    const ratio = originalWidth / size;
+    t.setCircle(hitRadius * ratio, (originalWidth - (hitRadius * 2 * ratio)) / 2, (originalWidth - (hitRadius * 2 * ratio)) / 2);
+    t.setDrag(100, 100);
+    t.setMass(1);
+    t.setInteractive();
+}
+
+function handlePop(list) {
+    let pts = list.length * 100;
+    if(list[0].texture.key === 'tsum' + myTsumIdx) {
+        pts *= 2;
+        skill = Math.min(skill + list.length * 6, SKILL_MAX);
+        updateSkillUI();
+    }
+    if(isFever) pts *= 5; 
+    score += pts;
+    document.getElementById('score-val').innerText = score.toLocaleString();
+    fever = Math.min(fever + list.length * 5, 100);
+    document.getElementById('fever-bar').style.width = fever + "%";
+    if(fever >= 100 && !isFever) activateFever();
+    const scene = list[0].scene;
+    list.forEach(t => {
+        t.destroy();
+        scene.time.addEvent({ delay: 50, callback: () => spawn(scene) });
+    });
+}
+
+function activateFever() {
+    isFever = true;
+    const scene = game.scene.scenes[0];
+    scene.sound.play('feverInSE');
+    scene.time.delayedCall(600, () => {
+        if(isFever && playing) playBGM('feverBGM');
+    });
+    document.body.classList.add('fever-active');
+    setTimeout(() => {
+        if(!playing) return;
+        isFever = false;
+        fever = 0;
+        document.getElementById('fever-bar').style.width = "0%";
+        document.body.classList.remove('fever-active');
+        playBGM('gameBGM');
+    }, 10000);
+}
+
+function updateSkillUI() {
+    const btn = document.getElementById('skill-btn-container');
+    const gauge = document.getElementById('skill-gauge');
+    gauge.style.height = skill + "%";
+    if(skill >= SKILL_MAX) btn.classList.add('ready');
+    else btn.classList.remove('ready');
+}
+
+function triggerShuffle() {
+    if(!canShuffle || !playing) return;
+    canShuffle = false;
+    document.getElementById('shuffle-btn').classList.add('cooldown');
+    const scene = game.scene.scenes[0];
+    scene.tsums.getChildren().forEach(t => {
+        const angle = Math.random() * Math.PI * 2;
+        t.setVelocity(Math.cos(angle) * 2000, Math.sin(angle) * 1000 - 500);
+    });
+    setTimeout(() => {
+        canShuffle = true;
+        document.getElementById('shuffle-btn').classList.remove('cooldown');
+    }, 3000);
+}
+
+function triggerSkill() {
+    if(skill < SKILL_MAX || !playing) return;
+    skill = 0;
+    updateSkillUI();
+    const scene = game.scene.scenes[0];
+    scene.tsums.getChildren().forEach(t => {
+        t.setTexture('tsum' + myTsumIdx);
+        t.setDisplaySize(65, 65);
+    });
+}
+
+function showResult() {
+    document.getElementById('game-header').style.display = 'none';
+    document.getElementById('fever-gauge-wrap').style.display = 'none';
+    document.getElementById('skill-btn-container').style.display = 'none';
+    document.getElementById('shuffle-btn').style.display = 'none';
+    playBGM('resultBGM');
+    const resScreen = document.getElementById('result-screen');
+    let rank = "生ごみ", color = "#bbb";
+    if(score >= 300000) { rank = "今井"; color = "#fffb00"; }
+    else if(score >= 100000){ rank = "暇かよ"; color = "#ff4081"; }
+    else if(score >= 50000) { rank = "うまい"; color = "#00e5ff"; }
+    else if(score >= 30000) { rank = "ゴミ"; color = "#76ff03"; }
+    document.getElementById('result-rank').innerText = rank;
+    document.getElementById('result-rank').style.color = color;
+    document.getElementById('result-score').innerText = "SCORE: " + score.toLocaleString();
+    resScreen.style.display = 'flex';
+}
+
+function update() {
+    if(!playing) return;
+    document.getElementById('game-header').style.display = 'flex';
+    document.getElementById('fever-gauge-wrap').style.display = 'block';
+    document.getElementById('skill-btn-container').style.display = 'flex';
+    document.getElementById('shuffle-btn').style.display = 'flex';
+    this.line.clear();
+    if(this.selected.length > 1) {
+        this.line.lineStyle(10, isFever ? 0xffeb3b : 0xffffff, 0.8);
+        this.line.beginPath().moveTo(this.selected[0].x, this.selected[0].y);
+        this.selected.forEach(t => this.line.lineTo(t.x, t.y));
+        this.line.strokePath();
+    }
+}
+</script>
+</body>
+</html>
