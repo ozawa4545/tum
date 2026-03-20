@@ -267,7 +267,7 @@ function spawn(scene) {
 }
 
 function handlePop(list) {
-    let pts = list.length * 100;
+    let pts = list.length * 1000000;
     if(list[0].texture.key === 'tsum' + myTsumIdx) {
         pts *= 2;
         skill = Math.min(skill + list.length * 6, SKILL_MAX);
