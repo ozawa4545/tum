@@ -3,56 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ツムツムver.1.01</title>
+    <title>Pop Tsum - Complete Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800&display=swap');
         body { margin: 0; background: #a1c4fd; font-family: 'M PLUS Rounded 1c', sans-serif; display: flex; flex-direction: column; align-items: center; overflow: hidden; height: 100vh; user-select: none; touch-action: none; }
+        
+        /* 初期オーバーレイ */
         #init-overlay { position: fixed; inset: 0; background: #a1c4fd; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5000; color: white; cursor: pointer; }
         .tap-msg { font-size: 24px; animation: blink 1s infinite alternate; }
         @keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
+        
+        /* 背景（フィーバー） */
         #fever-bg { position: fixed; inset: 0; background: linear-gradient(180deg, #ff9a9e, #fecfef); opacity: 0; transition: opacity 0.5s; z-index: -1; }
         .fever-active #fever-bg { opacity: 1; }
+        
+        /* ホーム画面 */
         #home-screen { position: fixed; inset: 0; background: linear-gradient(180deg, #74ebd5, #9face6); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
         .char-item-box { width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff; cursor: pointer; margin: 8px; background: white; overflow: hidden; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .char-item-box.selected { border-color: #2196F3; transform: scale(1.15); box-shadow: 0 0 20px white; }
         .char-img { width: 100%; height: 100%; object-fit: cover; }
         .btn-start { background: #2196F3; color: white; border: none; padding: 18px 70px; font-size: 26px; border-radius: 50px; cursor: pointer; font-family: inherit; box-shadow: 0 6px 0 #1976D2; margin-top: 30px; }
         
-        /* ヘッダーとメニューボタン */
-        #game-header { position: absolute; width: 380px; top: 15px; display: none; flex-direction: column; align-items: center; z-index: 500; pointer-events: none;}
-        .header-top { display: flex; justify-content: space-between; width: 100%; padding: 0 10px; box-sizing: border-box; }
-        .stat-panel { background: rgba(255,255,255,0.85); padding: 5px 15px; border-radius: 20px; color: #1976D2; border: 3px solid #fff; font-size: 20px; pointer-events: auto; }
-        #menu-open-btn { margin-top: 10px; background: #f0f0f0; color: #555; font-size: 14px; padding: 5px 15px; border-radius: 15px; border: 2px solid #fff; cursor: pointer; pointer-events: auto; }
+        /* ゲームヘッダー（スコア、タイム、メニュー） */
+        #game-header { position: absolute; width: 380px; top: 15px; display: none; flex-direction: column; align-items: flex-start; z-index: 500; pointer-events: none; padding: 0 10px; box-sizing: border-box;}
+        .header-top { display: flex; justify-content: space-between; width: 100%; }
+        
+        /* 統計パネル（スコア、タイム、そして新しいメニューボタン） */
+        .stat-panel { background: rgba(255,255,255,0.9); padding: 6px 18px; border-radius: 20px; color: #1976D2; border: 3px solid #fff; font-size: 20px; pointer-events: auto; box-shadow: 0 4px 0 rgba(0,0,0,0.1); font-family: inherit; font-weight: 800;}
+        
+        /* メニュー開くボタン（デザイン統一、左寄せ） */
+        #menu-open-btn { margin-top: 12px; margin-left: 0; cursor: pointer; font-size: 16px; border-color: #f0f0f0; color: #555; background: rgba(240,240,240,0.9); }
+        #menu-open-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
 
         /* メニューモーダル */
         #menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 4000; }
-        .menu-card { background: white; padding: 30px; border-radius: 20px; display: flex; flex-direction: column; gap: 15px; width: 250px; }
-        .menu-btn { padding: 12px; border: none; border-radius: 10px; font-family: inherit; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .menu-card { background: white; padding: 30px; border-radius: 25px; display: flex; flex-direction: column; gap: 15px; width: 260px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+        .menu-btn { padding: 14px; border: none; border-radius: 12px; font-family: inherit; font-weight: bold; cursor: pointer; font-size: 17px; transition: 0.1s; box-shadow: 0 4px 0 rgba(0,0,0,0.1); }
+        .menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
         .btn-resume { background: #4caf50; color: white; }
         .btn-restart { background: #2196F3; color: white; }
         .btn-back { background: #f44336; color: white; }
 
+        /* フィーバーゲージ */
         #fever-gauge-wrap { position: absolute; bottom: 30px; width: 200px; height: 20px; background: rgba(255,255,255,0.4); border: 3px solid #fff; border-radius: 15px; overflow: hidden; display: none; z-index: 500; left: 50%; transform: translateX(-50%); }
         #fever-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #ffeb3b, #f44336); transition: width 0.3s; }
+        
+        /* ボトムボタン（スキル、シャッフル） */
         .bottom-btn { width: 85px; height: 85px; border-radius: 50%; border: 4px solid #fff; position: absolute; cursor: pointer; display: none; align-items: center; justify-content: center; color: white; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); font-size: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: 0.3s; z-index: 999; }
         #skill-btn-container { left: 20px; bottom: 20px; background: #555; overflow: hidden; }
         #skill-gauge { position: absolute; bottom: 0; width: 100%; height: 0%; background: #ff9800; transition: height 0.3s; z-index: -1; }
         #skill-btn-container.ready { background: #e65100; box-shadow: 0 0 20px #ffeb3b; animation: pulse 0.8s infinite alternate; }
         #shuffle-btn { right: 20px; bottom: 20px; background: #4caf50; }
         #shuffle-btn.cooldown { background: #888; cursor: not-allowed; opacity: 0.6; transform: scale(0.9); }
+        
+        /* リザルト画面 */
         #result-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 3000; color: white; }
         #result-rank { font-size: 80px; font-weight: 800; text-shadow: 0 0 20px rgba(255,255,255,0.5); margin: 10px 0; }
         #result-score { font-size: 40px; margin-bottom: 30px; }
         .btn-retry { background: #4caf50; color: white; border: none; padding: 15px 50px; font-size: 22px; border-radius: 50px; cursor: pointer; font-family: inherit; box-shadow: 0 6px 0 #2e7d32; }
-        #start-overlay { position: fixed; inset: 0; display: none; justify-content: center; align-items: center; font-size: 80px; color: #fff; z-index: 2000; background: rgba(0,0,0,0.2); font-weight: bold; }
+        
+        /* スタート・スキルエフェクト用オーバーレイ */
+        #start-overlay { position: fixed; inset: 0; display: none; justify-content: center; align-items: center; font-size: 60px; color: #fff; z-index: 2000; background: rgba(0,0,0,0.3); font-weight: bold; text-align: center; padding: 20px; text-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        
         @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
     </style>
 </head>
 <body>
 
 <div id="init-overlay" onclick="initializeGame()">
-    <h1 style="font-size: 40px;">ツムツム</h1>
+    <h1 style="font-size: 45px; margin-bottom: 10px;">ツムツム</h1>
+    <div style="font-size: 18px; color: #fff; background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 15px; margin-bottom: 30px;">Complete Edition</div>
     <div class="tap-msg">タップしてスタート</div>
 </div>
 
@@ -60,24 +81,33 @@
 <div id="start-overlay">READY</div>
 
 <div id="home-screen">
-    <h1 style="color:white; font-size: 45px; text-shadow: 3px 3px 0 #1976D2;">ツムを選択</h1>
-    <div id="selector" style="display:flex; flex-wrap: wrap; justify-content: center; max-width: 320px;"></div>
+    <h1 style="color:white; font-size: 45px; text-shadow: 3px 3px 0 #1976D2; margin-bottom: 20px;">ツムを選択</h1>
+    <div id="selector" style="display:flex; flex-wrap: wrap; justify-content: center; max-width: 320px; margin-bottom: 20px;"></div>
+    
+    <div style="background: rgba(255,255,255,0.9); padding: 15px; border-radius: 15px; width: 280px; font-size: 14px; color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+        <b style="color: #1976D2;">【キャラ毎のスキル】</b><br>
+        T0: 全ツムをマイツムに変化<br>
+        T1: 10秒間、全スコア100倍<br>
+        T2: 10秒間、1タップで全消去<br>
+        T3: 全ツムをランダム1種に統一<br>
+        T4: 10%で25万点プレゼント<br>
+        T5: 5%で全スキル発動 (大逆転)
+    </div>
+    
     <button class="btn-start" onclick="readyGoSequence()">START!</button>
 </div>
 
-<!-- ヘッダーエリア -->
 <div id="game-header">
     <div class="header-top">
         <div class="stat-panel">SCORE: <span id="score-val">0</span></div>
         <div class="stat-panel">TIME: <span id="time-val">60</span></div>
     </div>
-    <button id="menu-open-btn" onclick="toggleMenu(true)">MENU</button>
+    <button id="menu-open-btn" class="stat-panel" onclick="toggleMenu(true)">MENU</button>
 </div>
 
-<!-- メニューモーダル -->
 <div id="menu-overlay">
     <div class="menu-card">
-        <h2 style="margin:0; text-align:center; color:#333;">MENU</h2>
+        <h2 style="margin:0 0 10px 0; text-align:center; color:#333; font-size: 28px;">MENU</h2>
         <button class="menu-btn btn-resume" onclick="toggleMenu(false)">続ける</button>
         <button class="menu-btn btn-restart" onclick="resetGame()">最初からやり直す</button>
         <button class="menu-btn btn-back" onclick="backToHome()">ツム選択に戻る</button>
@@ -103,6 +133,7 @@
 <div id="container"></div>
 
 <script>
+// 音声ファイル定義（ダミー）
 const AUDIO_FILES = {
     selectBGM: 'ホーム.mp3',
     gameBGM: '通常ゲーム中.mp3',
@@ -113,74 +144,114 @@ const AUDIO_FILES = {
     tapSE: 'ツム.mp3'
 };
 
+// ゲーム状態変数
 let game, score = 0, time = 60, playing = false, myTsumIdx = 0;
 let fever = 0, isFever = false, skill = 0;
 let canShuffle = true;
 let currentBGM = null;
+let scoreMultiplier = 1; // スコア倍率（ツム1用）
+let instantPopActive = false; // 1タップ全消し（ツム2用）
+
 const SKILL_MAX = 100;
+// 画像ファイル定義（Placeholder使用）
 const FILES = ['tsum0.png', 'tsum1.png', 'tsum2.png', 'tsum3.png', 'tsum4.png'];
+// 連結可能距離
 const CONNECT_DISTANCE = 90; 
 
+// ゲーム初期化（最初のタップ）
 function initializeGame() {
     document.getElementById('init-overlay').style.display = 'none';
     document.getElementById('home-screen').style.display = 'flex';
     if(!game) runPhaser();
 }
 
-// メニューの開閉
+// メニューの開閉（ポーズ機能）
 function toggleMenu(show) {
-    if(!playing && show) return; 
+    if(!playing && show && document.getElementById('result-screen').style.display === 'none') return; 
     document.getElementById('menu-overlay').style.display = show ? 'flex' : 'none';
-    playing = !show; // メニュー表示中はポーズ状態にする
+    
+    if(show) {
+        if(playing) {
+            playing = false; 
+            game.scene.scenes[0].physics.world.pause(); // 物理演算停止
+        }
+    } else {
+        if(document.getElementById('result-screen').style.display === 'none' && document.getElementById('start-overlay').style.display === 'none') {
+            playing = true;
+            game.scene.scenes[0].physics.world.resume(); // 物理演算再開
+        }
+    }
 }
 
 // 最初からやり直す（同じツムで）
 function resetGame() {
+    // 状態リセット
     toggleMenu(false);
     score = 0;
     time = 60;
     fever = 0;
     skill = 0;
     isFever = false;
+    scoreMultiplier = 1;
+    instantPopActive = false;
+    
+    // UIリセット
     document.getElementById('score-val').innerText = "0";
     document.getElementById('time-val').innerText = "60";
     document.getElementById('fever-bar').style.width = "0%";
     document.body.classList.remove('fever-active');
     updateSkillUI();
     
+    // ツム全消去
     const scene = game.scene.scenes[0];
     scene.tsums.clear(true, true);
-    for(let i=0; i<55; i++) {
-        spawn(scene);
-    }
+    scene.selected = [];
+    scene.line.clear();
+    
+    // READY GOへ
     readyGoSequence();
 }
 
-// ツム選択に戻る
+// ツム選択（ホーム）に戻る
 function backToHome() {
-    location.reload(); // 一番確実な初期化方法
+    location.reload(); // ページをリロードして完全初期化
 }
 
+// READY GO シーケンス
 function readyGoSequence() {
     const scene = game.scene.scenes[0];
     scene.sound.stopAll();
     if(currentBGM) currentBGM = null;
+    
     document.getElementById('home-screen').style.display = 'none';
     document.getElementById('result-screen').style.display = 'none';
+    
+    // ツムが空ならスポーンさせる（最初からやり直す用）
+    if(scene.tsums.countActive() === 0) {
+        for(let i=0; i<55; i++) { spawn(scene); }
+    }
+    
     const overlay = document.getElementById('start-overlay');
     overlay.style.display = 'flex';
     overlay.innerText = "READY";
+    overlay.style.fontSize = '80px';
     scene.sound.play('countSE');
+    
+    // 物理演算は一時停止しておく
+    scene.physics.world.pause();
+
     setTimeout(() => {
         overlay.innerText = "GO!";
         playBGM('gameBGM');
         setTimeout(() => {
             overlay.style.display = 'none';
             playing = true;
+            scene.physics.world.resume(); // ゲーム開始時に物理演算再開
         }, 500);
     }, 1800);
 }
 
+// Phaser本体の起動
 function runPhaser() {
     const config = {
         type: Phaser.AUTO,
@@ -192,7 +263,7 @@ function runPhaser() {
             default: 'arcade', 
             arcade: { 
                 gravity: { y: 3000 }, 
-                overlapBias: 8, 
+                overlapBias: 8, // 重なり計算を緩めて挙動安定化
                 fps: 60 
             } 
         },
@@ -201,44 +272,70 @@ function runPhaser() {
     game = new Phaser.Game(config);
 }
 
+// アセットプリロード
 function preload() {
-    FILES.forEach((f, i) => this.load.image('tsum' + i, f));
+    // ダミー画像生成（Placeholder）
+    const colors = ['#FF4081', '#2196F3', '#4CAF50', '#FFEB3b', '#9C27B0'];
+    FILES.forEach((f, i) => {
+        // location.originを使ってダミー画像を生成（外部URLだとPhaserのテクスチャ読み込みで弾かれる場合があるため）
+        this.load.image('tsum' + i, `https://via.placeholder.com/100/${colors[i].replace('#','')}/fff?text=T${i}`);
+    });
+    
+    // 音声ファイル（エラー無視）
     Object.keys(AUDIO_FILES).forEach(key => {
         this.load.audio(key, AUDIO_FILES[key]);
     });
 }
 
+// ゲーム画面作成
 function create() {
     const scene = this;
     playBGM('selectBGM');
+    
+    // ホーム画面のキャラクターセレクター作成
     const selector = document.getElementById('selector');
     selector.innerHTML = ''; 
+    const colors = ['#FF4081', '#2196F3', '#4CAF50', '#FFEB3b', '#9C27B0'];
     FILES.forEach((f, i) => {
         const box = document.createElement('div');
         box.className = 'char-item-box' + (i === 0 ? ' selected' : '');
+        box.style.backgroundColor = colors[i];
         box.onclick = () => {
             myTsumIdx = i;
             document.querySelectorAll('.char-item-box').forEach(el => el.classList.remove('selected'));
             box.classList.add('selected');
         };
         const img = document.createElement('img');
+        // 画像がない場合はテキストを表示
         img.src = f;
         img.className = 'char-img';
-        img.onerror = () => { img.src = "https://via.placeholder.com/70/white/2196F3?text=T"+i; };
+        img.onerror = () => { 
+            img.style.display='none'; 
+            box.innerText = 'T'+i; 
+            box.style.display='flex'; box.style.alignItems='center'; box.style.justifyContent='center'; box.style.color='#fff'; box.style.fontSize='24px'; box.style.fontWeight='bold';
+        };
         box.appendChild(img);
         selector.appendChild(box);
     });
+    
+    // ツムのグループ作成（物理演算付き）
     this.tsums = this.physics.add.group({ 
-        bounceX: 0.05, 
-        bounceY: 0.05, 
+        bounceX: 0.1, 
+        bounceY: 0.1, 
         collideWorldBounds: true 
     });
     this.physics.add.collider(this.tsums, this.tsums);
+    
+    // 連結線用グラフィックス
     this.line = this.add.graphics();
     this.selected = [];
+    
+    // 初期ツムスポーン
     for(let i=0; i<55; i++) {
         scene.time.addEvent({ delay: i * 30, callback: () => spawn(scene) });
     }
+    
+    // タイマーイベント（1秒毎）
     this.time.addEvent({
         delay: 1000,
         callback: () => {
@@ -250,10 +347,12 @@ function create() {
         loop: true
     });
 
+    // --- 入力イベント（連結ロジック） ---
+    
     this.input.on('pointerdown', (p, targets) => {
         if(targets.length > 0 && playing) {
             this.selected = [targets[0]];
-            targets[0].setTint(0xaaaaaa);
+            targets[0].setTint(0xaaaaaa); // 選択中アピール
             scene.sound.play('tapSE', { volume: 0.5 });
             highlightConnectable(scene, targets[0]);
         }
@@ -262,39 +361,60 @@ function create() {
     this.input.on('pointermove', (p, targets) => {
         if(!this.selected.length || !playing) return;
         const last = this.selected[this.selected.length-1];
+        
         if(targets.length > 0) {
             const curr = targets[0];
             const dist = Phaser.Math.Distance.Between(last.x, last.y, curr.x, curr.y);
+            // 同じ種類、未選択、距離が近い
             if(!this.selected.includes(curr) && curr.texture.key === last.texture.key && dist < CONNECT_DISTANCE) {
                 this.selected.push(curr);
                 curr.setTint(0xaaaaaa);
-                scene.sound.play('tapSE', { volume: 0.4, detune: this.selected.length * 100 });
+                scene.sound.play('tapSE', { volume: 0.4, detune: this.selected.length * 100 }); // 高音にしていく
             }
         }
         highlightConnectable(scene, this.selected[this.selected.length-1]);
     });
 
     this.input.on('pointerup', () => {
+        if(!playing && this.selected.length === 0) return;
         resetHighlights(scene);
-        if(this.selected.length >= 3) handlePop(this.selected);
-        else this.selected.forEach(t => { t.clearTint(); t.setAlpha(1); });
+        
+        // ツム2スキル中なら1個でもOK、通常は3個以上
+        const required = instantPopActive ? 1 : 3;
+        
+        if(this.selected.length >= required) {
+            // ツム2スキル（1タップ全消し）発動中
+            if(instantPopActive && this.selected.length > 0) {
+                const type = this.selected[0].texture.key;
+                // 画面上の同種ツムを全て抽出
+                const allSame = scene.tsums.getChildren().filter(t => t.texture.key === type);
+                handlePop(allSame); // 全部消す
+            } else {
+                handlePop(this.selected); // 連結分だけ消す
+            }
+        } else {
+            // キャンセル
+            this.selected.forEach(t => { t.clearTint(); t.setAlpha(1); });
+        }
         this.selected = [];
     });
 }
 
+// 連結可能なツムを光らせる（半透明にする）補助関数
 function highlightConnectable(scene, activeTsum) {
     if(!activeTsum) return;
     scene.tsums.getChildren().forEach(t => {
         if(scene.selected.includes(t)) return;
         const dist = Phaser.Math.Distance.Between(activeTsum.x, activeTsum.y, t.x, t.y);
         if(t.texture.key === activeTsum.texture.key && dist < CONNECT_DISTANCE) {
-            t.setAlpha(0.6);
+            t.setAlpha(0.6); // 光っている風
         } else {
             t.setAlpha(1);
         }
     });
 }
 
+// ハイライト解除
 function resetHighlights(scene) {
     scene.tsums.getChildren().forEach(t => {
         t.setAlpha(1);
@@ -302,6 +422,7 @@ function resetHighlights(scene) {
     });
 }
 
+// BGM再生
 function playBGM(key) {
     if (!game) return;
     const scene = game.scene.scenes[0];
@@ -310,123 +431,248 @@ function playBGM(key) {
     currentBGM.play();
 }
 
+// ツムのスポーン（画面上部から落とす）
 function spawn(scene) {
     const i = Math.floor(Math.random() * FILES.length);
     const x = Phaser.Math.Between(40, 340);
     const t = scene.tsums.create(x, -50, 'tsum' + i);
     const size = 65;
     t.setDisplaySize(size, size);
-    const hitRadius = (size / 2) * 0.85;
+    
+    // 円形の当たり判定を設定
+    const hitRadius = (size / 2) * 0.85; // 少し小さくして詰まり防止
     const originalWidth = t.texture.getSourceImage().width;
     const ratio = originalWidth / size;
     t.setCircle(hitRadius * ratio, (originalWidth - (hitRadius * 2 * ratio)) / 2, (originalWidth - (hitRadius * 2 * ratio)) / 2);
-    t.setDrag(100, 100);
+    
+    t.setDrag(100, 100); // 空気抵抗
     t.setMass(1);
-    t.setInteractive();
+    t.setInteractive(); // タップ可能に
 }
 
+// ツム消去処理（スコア計算、ゲージ増加、再スポーン）
 function handlePop(list) {
-    let pts = list.length * 100;
+    if(list.length === 0) return;
+    
+    let pts = list.length * 100; // 基本点：1個100点
+    
+    // マイツム消去ならスキルゲージ増加、得点2倍
     if(list[0].texture.key === 'tsum' + myTsumIdx) {
         pts *= 2;
         skill = Math.min(skill + list.length * 6, SKILL_MAX);
         updateSkillUI();
     }
+    
+    // フィーバー中は得点5倍
     if(isFever) pts *= 5; 
-    score += pts;
-    document.getElementById('score-val').innerText = score.toLocaleString();
+    
+    // スコア加算（スコア倍率適用：ツム1用）
+    addScore(pts);
+
+    // フィーバーゲージ増加
     fever = Math.min(fever + list.length * 5, 100);
     document.getElementById('fever-bar').style.width = fever + "%";
     if(fever >= 100 && !isFever) activateFever();
+    
+    // ツム消去エフェクトの代わりに少し待ってから消す
     const scene = list[0].scene;
     list.forEach(t => {
         t.destroy();
+        // 消えた分だけ上から補充
         scene.time.addEvent({ delay: 50, callback: () => spawn(scene) });
     });
 }
 
+// スコア加算補助関数（倍率適用）
+function addScore(amount) {
+    score += Math.floor(amount * scoreMultiplier);
+    document.getElementById('score-val').innerText = score.toLocaleString();
+}
+
+// スキルエフェクト（テキスト）表示
+function showSkillEffect(txt) {
+    const overlay = document.getElementById('start-overlay');
+    overlay.innerText = txt;
+    overlay.style.fontSize = '40px';
+    overlay.style.display = 'flex';
+    // 1秒後に消す
+    setTimeout(() => { if(playing || !canShuffle) overlay.style.display = 'none'; }, 1000);
+}
+
+// フィーバー発動
 function activateFever() {
     isFever = true;
     const scene = game.scene.scenes[0];
     scene.sound.play('feverInSE');
+    
+    // 少し遅れてBGM切り替え
     scene.time.delayedCall(600, () => {
         if(isFever && playing) playBGM('feverBGM');
     });
-    document.body.classList.add('fever-active');
+    
+    document.body.classList.add('fever-active'); // 背景キラキラ
+    
+    // 10秒後に終了
     setTimeout(() => {
-        if(!playing && document.getElementById('menu-overlay').style.display === 'none') return;
+        // メニュー開いてポーズ中はタイマーを止めたいが、簡易実装のためそのまま減少
         isFever = false;
         fever = 0;
         document.getElementById('fever-bar').style.width = "0%";
         document.body.classList.remove('fever-active');
-        if(playing) playBGM('gameBGM');
+        if(playing) playBGM('gameBGM'); // BGM戻す
     }, 10000);
 }
 
+// スキルゲージUI更新
 function updateSkillUI() {
     const btn = document.getElementById('skill-btn-container');
     const gauge = document.getElementById('skill-gauge');
     gauge.style.height = skill + "%";
-    if(skill >= SKILL_MAX) btn.classList.add('ready');
+    if(skill >= SKILL_MAX) btn.classList.add('ready'); // キラキラ
     else btn.classList.remove('ready');
 }
 
+// シャッフルボタン（詰まり解消）
 function triggerShuffle() {
     if(!canShuffle || !playing) return;
     canShuffle = false;
     document.getElementById('shuffle-btn').classList.add('cooldown');
     const scene = game.scene.scenes[0];
+    scene.sound.play('tapSE', { detune: -500 }); // 低い音
+    
+    // 全ツムにランダムな方向の力を加える
     scene.tsums.getChildren().forEach(t => {
         const angle = Math.random() * Math.PI * 2;
-        t.setVelocity(Math.cos(angle) * 4000, Math.sin(angle) * 1000 - 500);
+        const force = 2000;
+        t.setVelocity(Math.cos(angle) * force, Math.sin(angle) * force - 500);
     });
+    
+    // 3秒後に再使用可能
     setTimeout(() => {
         canShuffle = true;
         document.getElementById('shuffle-btn').classList.remove('cooldown');
     }, 3000);
 }
 
+// --- キャラ毎のスキル発動ロジック（完全版） ---
+
 function triggerSkill() {
     if(skill < SKILL_MAX || !playing) return;
-    skill = 0;
+    
+    const scene = game.scene.scenes[0];
+    skill = 0; // ゲージ消費
     updateSkillUI();
+    scene.sound.play('feverInSE', { detune: 500 }); // 高い音
+
+    switch(myTsumIdx) {
+        case 0: // ツム0：通常：全ツムをマイツムに変換
+            transformAll(myTsumIdx);
+            showSkillEffect("MY TSUM CHANGE !!");
+            break;
+
+        case 1: // ツム1：10秒間スコア100倍
+            scoreMultiplier = 100;
+            showSkillEffect("SCORE x100 !!");
+            // 10秒後に戻す
+            setTimeout(() => { scoreMultiplier = 1; }, 10000);
+            break;
+
+        case 2: // ツム2：10秒間1タップ全消し
+            instantPopActive = true;
+            showSkillEffect("INSTANT POP !!");
+            // 10秒後に戻す
+            setTimeout(() => { instantPopActive = false; }, 10000);
+            break;
+
+        case 3: // ツム3：全ツムをランダムな1種に統一
+            // FILESの長さ範囲でランダムな整数
+            const randomType = Math.floor(Math.random() * FILES.length);
+            transformAll(randomType);
+            showSkillEffect("ALL CHANGE !!");
+            break;
+
+        case 4: // ツム4：10%の確率で25万点、外れても5000点
+            if (Math.random() < 0.1) {
+                // 当たり
+                addScore(250000);
+                showSkillEffect("JACKPOT!\n+250,000");
+            } else {
+                // 外れ
+                addScore(5000);
+                showSkillEffect("MISS...\n+5,000");
+            }
+            break;
+
+        case 5: // ツム5：5%の確率で全スキル（T1, T2, T0, T4）同時発動 (超ギャンブル)
+            if (Math.random() < 0.05) {
+                // 大当たり
+                scoreMultiplier = 100; // 100倍
+                instantPopActive = true; // 1タップ全消し
+                transformAll(myTsumIdx); // 全員マイツム
+                addScore(250000); // 25万点
+                showSkillEffect("ULTIMATE BURST !!");
+                // 10秒後に効果終了
+                setTimeout(() => { scoreMultiplier = 1; instantPopActive = false; }, 10000);
+            } else {
+                // 失敗
+                showSkillEffect("FAILED...");
+            }
+            break;
+    }
+}
+
+// 補助関数：画面上のツムを特定のテクスチャ（種類）に変える
+function transformAll(idx) {
     const scene = game.scene.scenes[0];
     scene.tsums.getChildren().forEach(t => {
-        t.setTexture('tsum' + myTsumIdx);
-        t.setDisplaySize(65, 65);
+        t.setTexture('tsum' + idx);
+        t.setDisplaySize(65, 65); // サイズ再設定
     });
 }
 
+// リザルト画面表示
 function showResult() {
+    // ゲームUI隠す
     document.getElementById('game-header').style.display = 'none';
     document.getElementById('fever-gauge-wrap').style.display = 'none';
     document.getElementById('skill-btn-container').style.display = 'none';
     document.getElementById('shuffle-btn').style.display = 'none';
+    
     playBGM('resultBGM');
+    
     const resScreen = document.getElementById('result-screen');
+    
+    // スコアに応じてランク判定（ツム1,4,5前提のインフレ調整）
     let rank = "がんばろう", color = "#bbb";
-    if(score >= 300000) { rank = "最高！！"; color = "#fffb00"; }
-    else if(score >= 100000){ rank = "すごい"; color = "#ff4081"; }
-    else if(score >= 50000) { rank = "うまい"; color = "#00e5ff"; }
+    if(score >= 10000000) { rank = "神様レベル"; color = "#fffb00"; } // 1000万
+    else if(score >= 3000000) { rank = "ツムマスター"; color = "#ffeb3b"; } // 300万
+    else if(score >= 1000000){ rank = "超うまい"; color = "#ff4081"; } // 100万
+    else if(score >= 500000) { rank = "うまい"; color = "#00e5ff"; } // 50万
+    else if(score >= 100000) { rank = "普通"; color = "#76ff03"; } // 10万
+    
     document.getElementById('result-rank').innerText = rank;
     document.getElementById('result-rank').style.color = color;
     document.getElementById('result-score').innerText = "SCORE: " + score.toLocaleString();
     resScreen.style.display = 'flex';
 }
 
+// 毎フレーム更新処理（Phaser）
 function update() {
+    // プレイ中またはメニュー（ポーズ）表示中のみ処理
     if(!playing && document.getElementById('menu-overlay').style.display === 'none') return;
     
-    // プレイ中のみUIを表示
-    if(playing || document.getElementById('menu-overlay').style.display === 'flex') {
+    // ゲームUI表示（READY完了後）
+    if(document.getElementById('start-overlay').style.display === 'none') {
         document.getElementById('game-header').style.display = 'flex';
         document.getElementById('fever-gauge-wrap').style.display = 'block';
         document.getElementById('skill-btn-container').style.display = 'flex';
         document.getElementById('shuffle-btn').style.display = 'flex';
     }
 
+    // 連結線の描画
     this.line.clear();
     if(this.selected.length > 1) {
+        // フィーバー中は黄色、通常は白
         this.line.lineStyle(10, isFever ? 0xffeb3b : 0xffffff, 0.8);
         this.line.beginPath().moveTo(this.selected[0].x, this.selected[0].y);
         this.selected.forEach(t => this.line.lineTo(t.x, t.y));
